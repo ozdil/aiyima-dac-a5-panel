@@ -4,6 +4,7 @@ import copy
 import math
 import sys
 import threading
+import time
 
 import gi
 
@@ -369,6 +370,9 @@ class PanelWindow(Adw.ApplicationWindow):
         if not any(p.name == self.saved.name for p in be.list_presets()):
             be.save_preset(self.saved)
 
+    def log(self, text):
+        print(f"[{time.strftime('%H:%M:%S')}] {text}", file=sys.stderr, flush=True)
+
     def toast(self, text):
         self.toasts.add_toast(Adw.Toast(title=text, timeout=3))
 
@@ -542,7 +546,7 @@ class PanelWindow(Adw.ApplicationWindow):
         box.append(bands)
 
         clamp = Adw.Clamp(maximum_size=1200, child=box)
-        return Gtk.ScrolledWindow(child=clamp, hscrollbar_policy=Gtk.PolicyType.NEVER)
+        return Gtk.ScrolledWindow(child=clamp, hscrollbar_policy=Gtk.PolicyType.AUTOMATIC)
 
     def _sync_eq_ui(self):
         self._lock_preamp = True
@@ -621,6 +625,7 @@ class PanelWindow(Adw.ApplicationWindow):
         self.profile.preamp, self.profile.name = p.preamp, p.name
         be.set_live(self.node_id, be.profile_values(self.profile))
         self._sync_eq_ui()
+        self.log(f"hazır ayar uygulandı: {p.name}")
         self.toast(f"“{p.name}” uygulandı")
 
     def _on_preset_save(self, _b):
@@ -818,8 +823,14 @@ class PanelApp(Adw.Application):
 
 
 def _arm_watchdog(log):
-    """Ana döngü 3 saniyeden uzun takılırsa Python yığınını günlüğe döker."""
+    """Teşhis: ana döngü 3 sn takılırsa ya da ana iş parçacığı sürekli CPU yakıyorsa
+    Python yığınını günlüğe yazar. `kill -USR1 <pid>` ile anlık döküm de alınabilir."""
     import faulthandler
+    import signal
+    import time
+    import traceback
+
+    faulthandler.register(signal.SIGUSR1, file=log, all_threads=True)
 
     def rearm():
         faulthandler.dump_traceback_later(3, repeat=False, file=log)
@@ -827,6 +838,23 @@ def _arm_watchdog(log):
 
     rearm()
     GLib.timeout_add(500, rearm)
+    main_id = threading.main_thread().ident
+
+    def sampler():
+        last = time.process_time()
+        dumps = 0
+        while dumps < 20:
+            time.sleep(1.0)
+            now = time.process_time()
+            if now - last > 0.5:
+                frame = sys._current_frames().get(main_id)
+                log.write(f"--- yüksek CPU {now - last:.2f}s/s ({time.strftime('%H:%M:%S')}) ana iş parçacığı:\n")
+                log.write("".join(traceback.format_stack(frame)[-15:]) if frame else "(yok)\n")
+                log.flush()
+                dumps += 1
+            last = now
+
+    threading.Thread(target=sampler, daemon=True).start()
 
 
 def main(watchdog_file=None):
