@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=AIYIMA DAC-A5 Pro
+GenericName=DAC ince ayar paneli
+Comment=PipeWire EQ, donanım seviyesi ve örnekleme hızı
+Exec=aiyima-dac-panel
+Icon=audio-card
+Terminal=false
+Categories=AudioVideo;Audio;Settings;
+StartupWMClass=dev.ozdil.AiyimaDacPanel
