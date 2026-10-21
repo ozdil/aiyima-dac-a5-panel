@@ -550,31 +550,44 @@ class PanelWindow(Adw.ApplicationWindow):
         self._lock_preamp = False
         for c in self.band_cards:
             c.sync()
-        self._reload_presets(select=self.profile.name)
+        self._select_preset(self.profile.name)
         self.curve.queue_draw()
         self._update_banner()
 
     def _reload_presets(self, select=None):
+        """Listeyi yeniden kurar. Yalnızca hazır ayar eklenip silindiğinde çağrılır."""
         self._lock_presets = True
         self.presets = be.list_presets()
         model = Gtk.StringList()
         for p in self.presets:
             model.append(p.name)
         self.preset_row.set_model(model)
-        self.preset_row.set_selected(Gtk.INVALID_LIST_POSITION)
-        self.preset_row.set_subtitle("Özel ayar (kaydedilmemiş)")
-        for i, p in enumerate(self.presets):
-            if p.name == select:
-                self.preset_row.set_selected(i)
-                self.preset_row.set_subtitle(p.description)
         self._lock_presets = False
+        self._select_preset(select)
+
+    def _select_preset(self, name):
+        if not hasattr(self, "presets"):
+            self.presets = []
+            return self._reload_presets(select=name)
+        idx = next((i for i, p in enumerate(self.presets) if p.name == name), Gtk.INVALID_LIST_POSITION)
+        self._applied_name = name
+        self._lock_presets = True
+        if self.preset_row.get_selected() != idx:
+            self.preset_row.set_selected(idx)
+        self._lock_presets = False
+        self.preset_row.set_subtitle(
+            self.presets[idx].description if idx != Gtk.INVALID_LIST_POSITION else "Özel ayar (kaydedilmemiş)"
+        )
 
     def _on_preset_selected(self, row, _p):
+        # GTK seçim bildirimini model değişiminden sonra ertelenmiş olarak da
+        # gönderebiliyor; zaten uygulanmış ayarı tekrar uygulamak sonsuz döngü yaratır.
         i = row.get_selected()
-        if 0 <= i < len(getattr(self, "presets", [])):
-            row.set_subtitle(self.presets[i].description)
-        if not getattr(self, "_lock_presets", False):
-            self._on_preset_apply(None)
+        if getattr(self, "_lock_presets", False) or not (0 <= i < len(self.presets)):
+            return
+        if self.presets[i].name == getattr(self, "_applied_name", None):
+            return
+        self._on_preset_apply(None)
 
     def _on_preamp(self, row, _p):
         if getattr(self, "_lock_preamp", False):

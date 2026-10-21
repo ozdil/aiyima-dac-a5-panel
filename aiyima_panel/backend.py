@@ -222,15 +222,20 @@ def read_live(node_id):
     return {}
 
 
+_children = []
+
+
 def set_live(node_id, values):
     """values: {'eq_band_1:Gain': 3.0, ...} — PipeWire'ı yeniden başlatmadan uygular."""
     if node_id is None or not values:
         return
+    _children[:] = [c for c in _children if c.poll() is None]  # biten pw-cli süreçlerini topla
     body = " ".join(f'"{k}" {float(v):.4f}' for k, v in values.items())
-    subprocess.Popen(
+    proc = subprocess.Popen(
         ["pw-cli", "set-param", str(node_id), "Props", f"{{ params = [ {body} ] }}"],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=ENV,
     )
+    _children.append(proc)
 
 
 def profile_values(profile: EqProfile):

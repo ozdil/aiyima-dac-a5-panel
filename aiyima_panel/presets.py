@@ -6,6 +6,7 @@ yeniden başlatmadan canlı uygulanırlar. Preamp, toplam yanıtın tepesi
 0 dB'i geçmeyecek şekilde otomatik hesaplanır.
 """
 
+import functools
 import math
 
 from . import biquad
@@ -37,10 +38,15 @@ BUILTIN = [
 ]
 
 
-def auto_preamp(bands, rate=48000):
+@functools.lru_cache(maxsize=64)
+def _auto_preamp(bands, rate):
     freqs = [20 * (1000 ** (i / 299)) for i in range(300)]
     peak = max(biquad.response(bands, freqs, rate))
     return 0.0 if peak <= 0 else -math.ceil(peak * 2) / 2
+
+
+def auto_preamp(bands, rate=48000):
+    return _auto_preamp(tuple(tuple(b) for b in bands), rate)
 
 
 def builtin_profiles():
