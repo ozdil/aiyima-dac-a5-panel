@@ -817,7 +817,21 @@ class PanelApp(Adw.Application):
         win.present()
 
 
-def main():
+def _arm_watchdog(log):
+    """Ana döngü 3 saniyeden uzun takılırsa Python yığınını günlüğe döker."""
+    import faulthandler
+
+    def rearm():
+        faulthandler.dump_traceback_later(3, repeat=False, file=log)
+        return True
+
+    rearm()
+    GLib.timeout_add(500, rearm)
+
+
+def main(watchdog_file=None):
+    if watchdog_file is not None:
+        _arm_watchdog(watchdog_file)
     argv = list(sys.argv)
     page = "device" if "--cihaz" in argv else None
     argv = [a for a in argv if a != "--cihaz"]
