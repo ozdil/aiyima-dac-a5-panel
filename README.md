@@ -1,6 +1,6 @@
 # AIYIMA DAC-A5 Pro paneli
 
-Arch/Omarchy için GTK4 + libadwaita ince ayar arayüzü. Bağımlılıklar: `python-gobject`, `gtk4`, `libadwaita`, `pipewire`, `alsa-utils` (hepsi kurulu).
+Arch/Omarchy için GTK4 + libadwaita ince ayar arayüzü. Bağımlılıklar: `python-gobject`, `gtk4`, `libadwaita`, `pipewire`, `alsa-utils`. Arch için: `sudo pacman -S --needed python-gobject gtk4 libadwaita pipewire alsa-utils`
 
 ```
 ./install.sh            # ~/.local/bin ve uygulama menüsüne ekler
